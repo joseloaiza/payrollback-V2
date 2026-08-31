@@ -1,0 +1,65 @@
+name: Promote Tested Image to Production
+
+on:
+  push:
+    branches:
+      - production
+  workflow_dispatch:
+
+env:
+  AZURE_CONTAINER_REGISTRY: animorhpayrolldev.azurecr.io
+  CONTAINER_APP_NAME: ca-dev-payrollv2
+  RESOURCE_GROUP: rg-payroll-dev
+  STAGE_IMAGE_NAME: payroll-api-stage
+  PROD_IMAGE_NAME: payroll-api-prd
+
+jobs:
+  promote:
+    name: Promote from Stage to Production
+    runs-on: ubuntu-latest
+    environment:
+      name: production       # triggers manual approval
+      url: https://<your-prod-url>  # optional
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Download last staging image tag
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: deploy-stage.yml
+          name: image-tag
+          path: ./artifact
+          branch: stage
+
+      - name: Read image tag
+        id: tag
+        run: echo "IMAGE_TAG=$(cat ./artifact/image_tag.txt)" >> $GITHUB_ENV
+
+      - name: Log in to Azure Container Registry
+        run: az acr login --name animorhpayrolldev
+
+      - name: Promote image in ACR (tag from stage → prod)
+        run: |
+          echo "Promoting tag $IMAGE_TAG"
+          az acr import \
+            --name animorhpayrolldev \
+            --source $AZURE_CONTAINER_REGISTRY/$STAGE_IMAGE_NAME:$IMAGE_TAG \
+            --image $PROD_IMAGE_NAME:$IMAGE_TAG \
+            --force
+
+      - name: Deploy to Azure Container App (PRODUCTION)
+        run: |
+          az containerapp update \
+            --name $CONTAINER_APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --image $AZURE_CONTAINER_REGISTRY/$PROD_IMAGE_NAME:${{ env.IMAGE_TAG }}
+
+      - name: Output deployment info
+        run: echo "🚀 Promoted staging image $IMAGE_TAG to production"

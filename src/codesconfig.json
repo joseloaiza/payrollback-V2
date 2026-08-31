@@ -1,0 +1,540 @@
+[
+  {
+    "id": "0001",
+    "code": "M000",
+    "description": "salario ordinario"
+  },
+  {
+    "id": "0002",
+    "code": "M001",
+    "description": "salario integral"
+  },
+  {
+    "id": "0003",
+    "code": "M002",
+    "description": "apoyo sostenimiento"
+  },
+  {
+    "id": "0004",
+    "code": "M003",
+    "description": "mesada pensional"
+  },
+  {
+    "id": "0005",
+    "code": "M004",
+    "description": "auxilio de transporte legal"
+  },
+  {
+    "id": "0006",
+    "code": "/100",
+    "description": "Dias trabajado periodo"
+  },
+  {
+    "id": "0007",
+    "code": "/101",
+    "description": "Dias ausentismo periodo"
+  },
+  {
+    "id": "0008",
+    "code": "T000",
+    "description": "aporte salud empleado"
+  },
+  {
+    "id": "0009",
+    "code": "/111",
+    "description": "aporte salud empresa"
+  },
+  {
+    "id": "0010",
+    "code": "/102",
+    "description": "Pagos laborales salariales"
+  },
+  {
+    "id": "0011",
+    "code": "/103",
+    "description": "Pagos laborales No salariales"
+  },
+  {
+    "id": "0012",
+    "code": "/104",
+    "description": "Total Ingresos - Base CREE"
+  },
+  {
+    "id": "0013",
+    "code": "/105",
+    "description": "Base excenta ley 1393"
+  },
+  {
+    "id": "0014",
+    "code": "/106",
+    "description": "Exceso ley 1393 "
+  },
+  {
+    "id": "0015",
+    "code": "/107",
+    "description": "BASE SS SALUD"
+  },
+  {
+    "id": "0016",
+    "code": "/109",
+    "description": "BASE SS VACACIONES "
+  },
+  {
+    "id": "0017",
+    "code": "/110",
+    "description": "BASE SS LICENCIA REMUNERADA "
+  },
+  {
+    "id": "0018",
+    "code": "/117",
+    "description": "BASE SS LICENCIA NO REMUNERADA "
+  },
+  {
+    "id": "0019",
+    "code": "/108",
+    "description": "BASE SALUD MES ANTERIOR"
+  },
+  {
+    "id": "0020",
+    "code": "T001",
+    "description": "aporte pension empleado"
+  },
+  {
+    "id": "0021",
+    "code": "/112",
+    "description": "aporte pension empresa"
+  },
+  {
+    "id": "0022",
+    "code": "/113",
+    "description": "aporte riesgo"
+  },
+  {
+    "id": "0023",
+    "code": "/114",
+    "description": "aporte caja"
+  },
+  {
+    "id": "0024",
+    "code": "/115",
+    "description": "aporte sena"
+  },
+  {
+    "id": "0025",
+    "code": "/116",
+    "description": "aporte icbf"
+  },
+  {
+    "id": "0026",
+    "code": "TS003",
+    "description": "APOYO SOSTENIMIENTO"
+  },
+  {
+    "id": "0027",
+    "code": "TS004",
+    "description": "MESADA PENSIONAL"
+  },
+  {
+    "id": "0028",
+    "code": "TS001",
+    "description": "SUELDO BASICO"
+  },
+  {
+    "id": "0029",
+    "code": "TS002",
+    "description": "SALARIO INTEGRAL"
+  },
+  {
+    "id": "0030",
+    "code": "A100",
+    "description": "ausentismo vacaciones"
+  },
+  {
+    "id": "0031",
+    "code": "A300",
+    "description": "ausentismo licencia remunerada"
+  },
+  {
+    "id": "0032",
+    "code": "A400",
+    "description": "ausentismo licencia no remunerada"
+  },
+  {
+    "id": "0033",
+    "code": "TSSI",
+    "description": "TOPE SEGURIDAD SOCIAL REGIMEN INTEGRAL"
+  },
+  {
+    "id": "0034",
+    "code": "TMSA",
+    "description": "TOPE MAXIMO SALUD"
+  },
+  {
+    "id": "0035",
+    "code": "SMLV",
+    "description": "SALARIO MINIMO LEGAL VIGENTE"
+  },
+  {
+    "id": "0036",
+    "code": "T139",
+    "description": "TOPE LEY 1393"
+  },
+  {
+    "id": "0037",
+    "code": "ASEP",
+    "description": "APORTE SALUD EMPLEADO"
+  },
+  {
+    "id": "0038",
+    "code": "APEM",
+    "description": "APORTE PENSION EMPRESA"
+  },
+  {
+    "id": "0039",
+    "code": "APSP",
+    "description": "APORTE PENSION EMPLEADO"
+  },
+  {
+    "id": "0040",
+    "code": "ASEM",
+    "description": "APORTE SALUD EMPRESA"
+  },
+  {
+    "id": "0041",
+    "code": "ASP1",
+    "description": "APORTE PENSIONADO TOPE 1"
+  },
+  {
+    "id": "0042",
+    "code": "ASP2",
+    "description": "APORTE PENSIONADO TOPE 2"
+  },
+  {
+    "id": "0043",
+    "code": "ASP3",
+    "description": "APORTE PENSIONADO TOPE 3"
+  },
+  {
+    "id": "0060",
+    "code": "LEY50",
+    "description": "LEY 50"
+  },
+  {
+    "id": "0061",
+    "code": "REGAN",
+    "description": "REGIMEN ANTERIOR"
+  },
+  {
+    "id": "0062",
+    "code": "APREN",
+    "description": "APRENDIZAJE"
+  },
+  {
+    "id": "0063",
+    "code": "INTRG",
+    "description": "SALARIO INTEGRAL"
+  },
+  {
+    "id": "0064",
+    "code": "PENSI",
+    "description": "PENSIONADOS"
+  },
+  {
+    "id": "0065",
+    "code": "T002",
+    "description": "aporte solidaridad empleado"
+  },
+  {
+    "id": "0066",
+    "code": "/119",
+    "description": "solidaridad"
+  },
+  {
+    "id": "0067",
+    "code": "/120",
+    "description": "subsistencia"
+  },
+  {
+    "id": "0068",
+    "code": "/118",
+    "description": "Base ss riesgos"
+  },
+  {
+    "id": "0069",
+    "code": "TMRI",
+    "description": "tope maximo aporte a riesgo riesgo "
+  },
+  {
+    "id": "0070",
+    "code": "/121",
+    "description": "subsistencia"
+  },
+  {
+    "id": "0071",
+    "code": "PAPB",
+    "description": "porcentaje aporte bienestar familiar"
+  },
+  {
+    "id": "0072",
+    "code": "CREE",
+    "description": "porcentaje del tope cree"
+  },
+  {
+    "id": "0073",
+    "code": "PAPS",
+    "description": "porcentaje del tope SENA"
+  },
+  {
+    "id": "0074",
+    "code": "PAPC",
+    "description": "porcentaje del tope CAJA"
+  },
+  {
+    "id": "0080",
+    "code": "19",
+    "description": "tipo cotizante aprendiz se paga aporte a riesgo"
+  },
+  {
+    "id": "0081",
+    "code": "/122",
+    "description": "Base derecho transporte legal"
+  },
+  {
+    "id": "0082",
+    "code": "TTLE",
+    "description": "Tope salarion minimo para transporte"
+  },
+  {
+    "id": "0083",
+    "code": "AUTL",
+    "description": "Auxilio de transporte legal"
+  },
+  {
+    "id": "0084",
+    "code": "HEDO",
+    "description": "Hora extra diurna"
+  },
+  {
+    "id": "0085",
+    "code": "DIGE",
+    "description": "Dias de incapacidad empresa"
+  },
+  {
+    "id": "0086",
+    "code": "PEM2",
+    "description": "Porcentaje dias iniciales incapacidad empresa"
+  },
+  {
+    "id": "0087",
+    "code": "PEP3",
+    "description": "Porcentaje dias iniciales incapacidad eps"
+  },
+  {
+    "id": "0088",
+    "code": "PEP9",
+    "description": "Porcentaje dias iniciales incapacidad  entre 91 y 180 "
+  },
+  {
+    "id": "0089",
+    "code": "PEP8",
+    "description": "Porcentaje dias iniciales incapacidad eps entre 181 y 540"
+  },
+  {
+    "id": "0090",
+    "code": "PEP5",
+    "description": "Porcentaje dias iniciales incapacidad eps mayor a 541"
+  },
+  {
+    "id": "0095",
+    "code": "M017",
+    "description": "Aux dias incapacidad general empresa"
+  },
+  {
+    "id": "0096",
+    "code": "M016",
+    "description": "Aux dias incapacidad general eps"
+  },
+  {
+    "id": "0097",
+    "code": "M018",
+    "description": "Aux adicional dias incapacidad empresa"
+  },
+  {
+    "id": "0098",
+    "code": "M019",
+    "description": "Aux dias prorroga eps"
+  },
+  {
+    "id": "0099",
+    "code": "M020",
+    "description": "Aux dias eps hospitalaria"
+  },
+  {
+    "id": "0100",
+    "code": "A100",
+    "description": "vacaciones"
+  },
+  {
+    "id": "0101",
+    "code": "A200",
+    "description": "Incapacidad General Ambulatoria",
+    "category": "DISEASE_ABSENTEE"
+  },
+  {
+    "id": "0102",
+    "code": "A250",
+    "description": "Prorroga Incapacidad General Ambulatoria",
+    "category": "DISEASE_ABSENTEE"
+  },
+  {
+    "id": "0103",
+    "code": "A300",
+    "description": "Incapacidad General hospitalaria",
+    "category": "DISEASE_ABSENTEE"
+  },
+  {
+    "id": "0104",
+    "code": "A350",
+    "description": "Prorroga Incapacidad General hospitalaria",
+    "category": "DISEASE_ABSENTEE"
+  },
+  {
+    "id": "0107",
+    "code": "AT01",
+    "description": "Sin auxilio"
+  },
+  {
+    "id": "0108",
+    "code": "AT02",
+    "description": "Auxilio dias empresa"
+  },
+  {
+    "id": "0109",
+    "code": "AT03",
+    "description": "Auxilio dias eps"
+  },
+  {
+    "id": "0110",
+    "code": "AT04",
+    "description": "Auxlio empresa mas eps"
+  },
+  {
+    "id": "0111",
+    "code": "M021",
+    "description": "Aux dias prorroga eps hospitalaria"
+  },
+  {
+    "id": "0112",
+    "code": "AUXE",
+    "description": "Axilio empresa incapacidad"
+  },
+  {
+    "id": "0113",
+    "code": "A400",
+    "description": "Incap.Accidente Trabajo",
+    "category": "DISEASE_ABSENTEE"
+  },
+  {
+    "id": "0114",
+    "code": "A450",
+    "description": "Prórroga Inc.Acc.Trabajo",
+    "category": "DISEASE_ABSENTEE"
+  },
+  {
+    "id": "0115",
+    "code": "A500",
+    "description": "Incapacidad Enfermedad Profesional",
+    "category": "DISEASE_ABSENTEE"
+  },
+  {
+    "id": "0116",
+    "code": "A550",
+    "description": "Prorroga Incapacidad Enfermedad Profesional",
+    "category": "DISEASE_ABSENTEE"
+  },
+  {
+    "id": "0117",
+    "code": "M026",
+    "description": "Aux.Días inic.incap riesg"
+  },
+  {
+    "id": "0118",
+    "code": "M022",
+    "description": "Incap.Accidente Trabajo"
+  },
+  {
+    "id": "0119",
+    "code": "M023",
+    "description": "Prórroga Inc.Acc.Trabajo"
+  },
+  {
+    "id": "0120",
+    "code": "M024",
+    "description": "Incap.Enfermedad Profesio"
+  },
+  {
+    "id": "0121",
+    "code": "M025",
+    "description": "Prórroga Inc.Enf.Profesio"
+  },
+  {
+    "id": "0122",
+    "code": "A650",
+    "description": "tipo de ausentismo licencia no remunerada"
+  },
+  {
+    "id": "0123",
+    "code": "A600",
+    "description": "tipo de ausentismo licencia  remunerada"
+  },
+  {
+    "id": "0124",
+    "code": "M027",
+    "description": "concepto licencia  remunerada"
+  },
+  {
+    "id": "0125",
+    "code": "M028",
+    "description": "concepto licencia  no remunerada"
+  },
+  {
+    "id": "0126",
+    "code": "A900",
+    "description": "tipo de ausentismo suspension"
+  },
+  {
+    "id": "0127",
+    "code": "A850",
+    "description": "tipo de ausentismo licencia paternidad"
+  },
+  {
+    "id": "0128",
+    "code": "A800",
+    "description": "tipo de ausentismo licencia maternidad"
+  },
+  {
+    "id": "0129",
+    "code": "M029",
+    "description": "concepto suspension"
+  },
+  {
+    "id": "0130",
+    "code": "M030",
+    "description": "concepto licencia paternidad"
+  },
+  {
+    "id": "0131",
+    "code": "M031",
+    "description": "concepto licencia maternidad"
+  },
+  {
+    "id": "0132",
+    "code": "T003",
+    "description": "aporte pension voluntaria"
+  },
+  {
+    "id": "0133",
+    "code": "T004",
+    "description": "Aporte afc"
+  }
+]
