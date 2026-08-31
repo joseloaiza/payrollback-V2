@@ -7,6 +7,10 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { AbsenteeType } from './absentee-type.entity';
+import {
+  dateTransformer,
+  nullableDateTransformer,
+} from 'src/utils/date-utilities';
 
 @Entity('absenteeHistory')
 export class AbsenteeHistory extends AbstractEntity {
@@ -19,10 +23,10 @@ export class AbsenteeHistory extends AbstractEntity {
   @Column()
   absenteeType_id: string;
 
-  @Column()
+  @Column({ type: 'timestamp', transformer: dateTransformer })
   initialAbsencesDate: Date;
 
-  @Column()
+  @Column({ type: 'timestamp', transformer: dateTransformer })
   endAbsencesDate: Date;
 
   @Column({ precision: 5, scale: 0, nullable: true })
@@ -46,7 +50,11 @@ export class AbsenteeHistory extends AbstractEntity {
   @Column()
   isActive: boolean;
 
-  @Column({ nullable: true })
+  @Column({
+    type: 'timestamp',
+    nullable: true,
+    transformer: nullableDateTransformer,
+  })
   returnDate?: Date;
 
   @Column({ nullable: true })

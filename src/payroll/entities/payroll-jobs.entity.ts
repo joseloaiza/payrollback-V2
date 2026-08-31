@@ -56,4 +56,12 @@ export class PayrollJob extends AbstractEntity {
 
   @Column({ nullable: true })
   cause_liquidation_id?: string;
+
+  // La columna real en Postgres se llama "liquidatation_id" (typo histórico,
+  // agregado fuera del sistema de migraciones — ver auditoría). Se mapea
+  // explícitamente en vez de renombrar la columna para no tocar el esquema
+  // real todavía; la corrección del typo en la BD queda para la etapa de
+  // unificación de migraciones.
+  @Column({ name: 'liquidatation_id', nullable: true })
+  liquidation_id?: string;
 }
