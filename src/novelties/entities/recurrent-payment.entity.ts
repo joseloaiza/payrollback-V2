@@ -6,7 +6,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Concept } from '../../payroll/entities/concept.entity';
+import { Concept } from '../../concepts/concept.entity';
 import { Employee } from 'src/employees/entities/employee.entity';
 
 @Entity('recurrentPayment')

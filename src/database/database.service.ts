@@ -16,7 +16,9 @@ export class DatabaseService implements OnApplicationBootstrap {
         this.logger.log('✅ Database connection established ( lazy init)');
       }
     } catch (error) {
-      this.logger.error('❌ Database connection failed', error.stack);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error('❌ Database connection failed', errorMessage);
       throw error;
     }
   }

@@ -5,11 +5,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UsersCompany } from './entities/usersCompany.entity';
 import { Company } from 'src/companies/entities/company.entity';
-import { Concept } from 'src/payroll/entities/concept.entity';
+import { Concept } from 'src/concepts/concept.entity';
 import { CompanyPayment } from 'src/companies/entities/companyPayment.entity';
 import { CompanyPayroll } from 'src/companies/entities/companyPayroll.entity';
-import { ConceptService } from 'src/payroll/concept/concept.service';
-import { ConceptRepository } from 'src/payroll/concept/concept.repository';
+import { ConceptService } from 'src/concepts/concepts.service';
+import { ConceptRepository } from 'src/concepts/concept.repository';
 
 @Module({
   imports: [

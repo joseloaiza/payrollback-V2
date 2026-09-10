@@ -8,12 +8,12 @@ import { Company } from '../companies/entities/company.entity';
 import { CompanyPayment } from '../companies/entities/companyPayment.entity';
 import { CompanyPaymentRepository } from '../companies/company-payment/comanyPayment.respository';
 import { CompanyPaymentService } from '../companies/company-payment/companyPayment.service';
-import { PayrollService } from '../payroll/payroll/payroll.service';
-import { PayrollRepository } from '../payroll/payroll/payroll.repository';
-import { Period } from '../payroll/entities/period.entity';
+import { PayrollService } from '../payroll/payroll.service';
+import { PayrollRepository } from '../payroll/payroll.repository';
+import { Period } from '../period/entities/period.entity';
 import { Movement } from '../movement/entities/movement.entity';
-import { PeriodStatus } from '../payroll/entities/periodStatus.entity';
-import { Concept } from '../payroll/entities/concept.entity';
+import { PeriodStatus } from '../period/entities/periodStatus.entity';
+import { Concept } from '../concepts/concept.entity';
 import { AbsenteeHistory } from '../novelties/entities/absenteeHistory.entity';
 import { Employee } from '../employees/entities/employee.entity';
 import { EmployeeSalary } from '../employees/entities/employee-salary.entity';
@@ -22,16 +22,16 @@ import { Solidarity } from '../shared/entities/solidarity.entity';
 import { MovementRepository } from '../movement/movement.repository';
 import { EmployeeRepository } from '../employees/employee/employee.repository';
 import { EmployeeSalaryRepository } from '../employees/employee-salary/employee-salary.repository';
-import { ConceptRepository } from '../payroll/concept/concept.repository';
+import { ConceptRepository } from '../concepts/concept.repository';
 import { AbsenteeHistoryRepository } from '../novelties/absenteeism/absentee-history.repository';
-import { PeriodStatusRepository } from '../payroll/period-status/period-status.repository';
+import { PeriodStatusRepository } from '../period/period-status/period-status.repository';
 import { RecurrentPaymentRepository } from '../novelties/recurrent-payment/recurrent-payment.repository';
 import { SolidarityRepository } from '../shared/solidarity/solidarity.repository';
-import { PeriodRepository } from '../payroll/period/period.repository';
-import { ConceptService } from '../payroll/concept/concept.service';
+import { PeriodRepository } from '../period/period.repository';
+import { ConceptService } from '../concepts/concepts.service';
 import { MovementService } from '../movement/movement.service';
-import { PeriodService } from '../payroll/period/period.service';
-import { PeriodStatusService } from '../payroll/period-status/period-status.service';
+import { PeriodService } from '../period/period.service';
+import { PeriodStatusService } from '../period/period-status/period-status.service';
 import { RecurrentPaymentService } from '../novelties/recurrent-payment/recurrent-payment.service';
 import { EmployeeService } from '../employees/employee/employee.service';
 import { EmployeeSalaryService } from '../employees/employee-salary/employee-salary.service';
@@ -52,14 +52,16 @@ import { CompanyPayrollService } from '../companies/company-payroll/companyPayro
 import { CompanyPayroll } from '../companies/entities/companyPayroll.entity';
 import { SharedConfigModule } from '../shared-config/shared-config.module';
 import { PayrollModule } from 'src/payroll/payroll.module';
+import { JobsModule } from 'src/jobs/jobs.module';
+import { CodesConfigModule } from 'src/config/codes-config.module';
 import { EmployeeFullView } from 'src/employees/entities/employee.view';
+import { EmployeeContract } from 'src/employees/entities/employee-contract.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Company,
       CompanyPayment,
-      PayrollRepository,
       Period,
       PeriodStatus,
       Movement,
@@ -74,9 +76,12 @@ import { EmployeeFullView } from 'src/employees/entities/employee.view';
       EmployeePayment,
       AccountType,
       CompanyPayroll,
+      EmployeeContract,
     ]),
     PayrollModule,
     SharedConfigModule,
+    JobsModule,
+    CodesConfigModule,
   ],
   controllers: [ExportsController],
   providers: [

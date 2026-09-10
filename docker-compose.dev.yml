@@ -1,0 +1,109 @@
+name: payroll-dev
+services:
+  rabbitmq:
+    image: rabbitmq:3-management # Or a specific version like rabbitmq:3.13-management
+    container_name: payroll-rabbitmq
+    hostname: rabbitmq_payroll
+    ports:
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # Persistent data volume
+    networks:
+      - payroll_network
+  postgres:
+    image: postgres:16-alpine
+    container_name: payroll-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Payroll2025@
+      POSTGRES_DB: dbPayroll
+    ports:
+      - "5433:5432" # Postgres port (5432 already used by another local container)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persistent data volume
+    networks:
+      - payroll_network
+  redis:
+    image: redis:7.2-alpine # Lightweight Redis 7
+    container_name: payroll-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379" # Expose Redis port
+    volumes:
+      - redis_data:/data # Persistent storage
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - payroll_network
+  redis-insight: # GUI for monitoring
+    image: redislabs/redisinsight:latest
+    container_name: payroll-redis-insight
+    ports:
+      - "8001:8001" # Access UI at http://localhost:8001
+    depends_on:
+      - redis
+    volumes:
+      - redisinsight_data:/db
+    restart: unless-stopped
+    networks:
+      - payroll_network
+  payroll-worker:
+    container_name: payroll-worker
+    image: payroll-worker
+    build:
+      context: ./payroll-worker
+      args:
+        - NODE_ENV=development
+      # platforms:
+      #   - linux/amd64
+    env_file:
+      - ./payroll-worker/.env
+    volumes:
+      - ./payroll-worker:/app
+      - /app/node_modules
+    depends_on:
+      - rabbitmq
+      - redis
+    ports:
+      - 3001:3001
+      - 9229:9229
+    networks:
+      - payroll_network
+    command: npm run start:debug
+  payroll-api:
+    container_name: payroll-api
+    image: payroll-api
+    build:
+      context: ./payrollback
+      args:
+        - NODE_ENV=development
+      # platforms:
+      #   - linux/amd64
+    env_file:
+      - ./payrollback/.env.development
+    volumes:
+      - ./payrollback:/app
+      - /app/node_modules
+    depends_on:
+      - rabbitmq
+      - postgres
+    command: npm run start:debug
+    ports:
+      - 3000:3000
+      - 9230:9230
+    networks:
+      - payroll_network
+volumes:
+  postgres_data:
+    external: true
+    name: backend_postgres_data
+  rabbitmq_data:
+  redis_data: # Named volume for data persistence
+  redisinsight_data:
+networks:
+  payroll_network:
+    driver: bridge

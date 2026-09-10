@@ -180,6 +180,6 @@ import { ReasonsContractTerminationRepository } from './reasons-contract-termina
     CompanyEconomicActivityRiskController,
     ResonsContractTerminationController,
   ],
-  exports: [],
+  exports: [SolidarityService],
 })
 export class SharedModule {}

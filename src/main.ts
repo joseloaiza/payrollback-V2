@@ -8,10 +8,21 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston/dist/winston.constants';
 
-//import { AppLoggerService } from './logger/logger.service';
-
 dotenv.config({ path: process.cwd() + `/.env.${process.env.NODE_ENV}` });
+
+type ProcessType = 'web' | 'worker';
+
 async function bootstrap() {
+  const processType = (process.env.PROCESS_TYPE ?? 'web') as ProcessType;
+
+  if (processType === 'worker') {
+    await bootstrapWorker();
+  } else {
+    await bootstrapWeb();
+  }
+}
+
+async function bootstrapWeb() {
   const app = await NestFactory.create(AppModule);
   // Obtener el dominio del frontend desde las variables de entorno o lista de permitidos
   const frontendUrl =
@@ -57,7 +68,6 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Authorization',
   });
-  //app.useGlobalFilters(new GlobalExceptionFilter());
   app.setGlobalPrefix('api');
   app.enableVersioning({
     type: VersioningType.URI,
@@ -84,10 +94,37 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   await app.listen(process.env.PORT ?? 3000);
-  console.info('✅ Payroll App Started succesfully');
+  console.info('✅ Payroll API (PROCESS_TYPE=web) iniciada correctamente');
   console.info(`🚀 This application is running on: ${await app.getUrl()}`);
   console.log(process.env.NODE_ENV);
 }
+
+async function bootstrapWorker() {
+  // Sin Swagger, sin Helmet de API pública, sin CORS: este proceso no
+  // atiende tráfico externo, solo /health para las probes de Azure
+  // Container Apps. El consumo real de la cola lo hace PayrollProcessor
+  // (MessagingClient.subscribe en su onModuleInit), sin importar si el
+  // proveedor activo es RabbitMQ o Azure Service Bus.
+  const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+  app.useGlobalFilters(
+    new AllExceptionsFilter(app.get(WINSTON_MODULE_NEST_PROVIDER)),
+  );
+
+  const port = process.env.PORT ?? 3001;
+  await app.listen(port);
+  console.info('✅ Payroll Worker (PROCESS_TYPE=worker) iniciado correctamente');
+  console.info(`🩺 Health-check disponible en :${port}/health`);
+  console.log(process.env.NODE_ENV);
+}
+
 bootstrap().catch((err) => {
   console.error('Bootstrap faile: ', err);
   process.exit(1);

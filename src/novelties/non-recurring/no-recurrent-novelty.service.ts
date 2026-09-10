@@ -3,8 +3,8 @@ import { plainToInstance } from 'class-transformer';
 import { DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { saveNoveltyDto, ResponseNoveltiesDto } from '../dtos/novelties.dto';
-import { PeriodService } from '../../payroll/period/period.service';
-import { ConceptService } from '../../payroll/concept/concept.service';
+import { PeriodService } from '../../period/period.service';
+import { ConceptService } from '../../concepts/concepts.service';
 import { Movement } from '../../movement/entities/movement.entity';
 import { EmployeeSalaryService } from '../../employees/employee-salary/employee-salary.service';
 import { PayrollConstantsService } from '../../shared-config/constants/constants.service';
@@ -153,12 +153,13 @@ export class NoRecurrentNoveltyService {
     period_id: string,
     concepGroup?: string,
   ): Promise<ResponseNoveltiesDto[]> {
-    const novelties = await this.movementService.get_novelties_by_employee(
-      employee_id,
-      company_id,
-      period_id,
-      concepGroup,
-    );
+    const novelties =
+      await this.movementService.getMovementsNoveltiesTypeInPeriod(
+        employee_id,
+        company_id,
+        period_id,
+        concepGroup,
+      );
 
     return novelties.map((record) =>
       plainToInstance(ResponseNoveltiesDto, {

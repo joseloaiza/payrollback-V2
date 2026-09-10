@@ -1,10 +1,5 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Brackets,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
+import { Between, Brackets, Repository } from 'typeorm';
 import { Injectable } from '@nestjs/common';
 import {
   CreateAbsenteeHistoryDto,
@@ -28,7 +23,7 @@ export class AbsenteeHistoryRepository extends BaseRepository<
     super(repo);
   }
 
-  async get_absentees_employee_in_period_range(
+  async getAbsenteesByPeriodRange(
     employeeId: string,
     iniDatePeriod: Date,
     endDatePeriod: Date,
@@ -36,9 +31,7 @@ export class AbsenteeHistoryRepository extends BaseRepository<
     return await this.repo.find({
       where: {
         employee_id: employeeId,
-        initialAbsencesDate: LessThanOrEqual(endDatePeriod),
-        endAbsencesDate: MoreThanOrEqual(iniDatePeriod),
-        //initialAbsencesDate: Between(iniDatePeriod, endDatePeriod),
+        initialAbsencesDate: Between(iniDatePeriod, endDatePeriod),
       },
       relations: ['absenteeType'],
       order: {
@@ -47,7 +40,7 @@ export class AbsenteeHistoryRepository extends BaseRepository<
     });
   }
 
-  async get_absentees_employee_by_codes_in_period_range(
+  async getAbsenteesByCodesAndDateRange(
     employeeId: string,
     iniDate: Date,
     endDate: Date,
@@ -91,7 +84,7 @@ export class AbsenteeHistoryRepository extends BaseRepository<
       .getMany();
   }
 
-  async get_absentees_by_period_range(
+  async getAbsenteesByCodesAndDateRangeV2(
     employeeId: string,
     iniDate: Date,
     endDate: Date,
@@ -141,7 +134,7 @@ export class AbsenteeHistoryRepository extends BaseRepository<
       .getMany();
   }
 
-  async get_days_initial_absentee(id: string): Promise<number> {
+  async getInitialAbsenteeDays(id: string): Promise<number> {
     const result = await this.repo
       .createQueryBuilder('absenteeHistory')
       .select('SUM(absenteeHistory.quantity)', 'total')
@@ -151,7 +144,24 @@ export class AbsenteeHistoryRepository extends BaseRepository<
     return result ? parseInt(result.total, 10) : 0;
   }
 
-  async get_days_absentee_by_reference(
+  async getVacationAbsencesByPeriod(
+    employeeId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<AbsenteeHistory[]> {
+    return this.repo
+      .createQueryBuilder('ah')
+      .innerJoinAndSelect('ah.absenteeType', 'at')
+      .where('ah.employee_id = :employeeId', { employeeId })
+      .andWhere('at.code = :code', { code: 'A100' })
+      .andWhere('ah.isActive = true')
+      .andWhere('ah.initialAbsencesDate <= :periodEnd', { periodEnd })
+      .andWhere('ah.endAbsencesDate >= :periodStart', { periodStart })
+      .orderBy('ah.initialAbsencesDate', 'ASC')
+      .getMany();
+  }
+
+  async getAbsenteeDaysByReference(
     referenceInhability: string,
     initialAbsencesDate: Date,
   ): Promise<number> {

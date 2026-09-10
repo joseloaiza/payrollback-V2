@@ -8,6 +8,7 @@ import {
   ResponseCompanyPayrollDto,
 } from '../dtos/companyPayroll.dto';
 import { CompanyPayrollRepository } from './company-payroll.repository';
+import { CompanyPayroll } from '../entities/company-payroll.entity';
 
 @Injectable()
 export class CompanyPayrollService {
@@ -28,6 +29,14 @@ export class CompanyPayrollService {
       throw new NotFoundException('CompanyPayroll not found');
     }
     return plainToInstance(ResponseCompanyPayrollDto, entity);
+  }
+
+  async findOne1(id: string): Promise<CompanyPayroll> {
+    const entity = await this.repo.findOne(id);
+    if (!entity) {
+      throw new NotFoundException('CompanyPayroll not found');
+    }
+    return entity;
   }
 
   async create(

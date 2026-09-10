@@ -1,4 +1,4 @@
-import { CodesConfigService } from 'src/payroll-processing/config/codes-config/codes-config.service';
+import { CodesConfigService } from 'src/config/codes-config/codes-config.service';
 
 export async function getConceptCodes<T extends Record<string, string>>(
   codesConfigService: CodesConfigService,

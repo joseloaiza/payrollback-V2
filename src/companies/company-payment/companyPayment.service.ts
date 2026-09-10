@@ -8,6 +8,7 @@ import {
   ResponseCompanyPaymentDto,
 } from '../dtos/companyPayment.dto';
 import { CompanyPaymentRepository } from './comanyPayment.respository';
+import { CompanyPayment } from '../entities/companyPayment.entity';
 
 @Injectable()
 export class CompanyPaymentService {
@@ -30,6 +31,16 @@ export class CompanyPaymentService {
       throw new NotFoundException('CompanyPayroll not found');
     }
     return plainToInstance(ResponseCompanyPaymentDto, entity);
+  }
+
+  async findOne1(id: string): Promise<CompanyPayment> {
+    const entity = await this.repo.findOne(id, {
+      relations: ['paymentFrequency'],
+    });
+    if (!entity) {
+      throw new NotFoundException('CompanyPayroll not found');
+    }
+    return entity;
   }
 
   async create(

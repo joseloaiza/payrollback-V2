@@ -1,42 +1,43 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { DatabaseModule } from './database/database.module';
-import { MailModule } from './mail/mail.module';
-import { CompaniesModule } from './companies/companies.module';
-import { PayrollModule } from './payroll/payroll.module';
-import { AttendanceModule } from './attendance/attendance.module';
-import { BenefitsModule } from './benefits/benefits.module';
-import { ReportsModule } from './reports/reports.module';
-import { ComplianceModule } from './compliance/compliance.module';
-import { NotificationsModule } from './notifications/notification.module';
-import { IntegrationModule } from './integration/integration.module';
-import { EmployeesModule } from './employees/employees.module';
-import { SharedModule } from './shared/shared.module';
-import { DeductionsModule } from './deductions/deductions.module';
-import { BonusesModule } from './bonuses/bonuses.module';
-import { CostCentersModule } from './cost-centers/cost-centers.module';
-import { TimeTrackingModule } from './time-tracking/time-tracking.module';
-import { BankingModule } from './banking/banking.module';
-import { NoveltiesModule } from './novelties/novelties.module';
-import configuration from './config/config';
-import * as dotenv from 'dotenv';
-import { SocialSecurityModule } from './social-security/social-security.module';
+import { CacheModule } from '@nestjs/cache-manager';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { LoggerFactory } from './common/logger/logger-factory';
 import { WinstonModule } from 'nest-winston';
-import { MovementModule } from './movement/movement.module';
-import { ExportsModule } from './exports/exports.module';
-import { SharedConfigModule } from './shared-config/shared-config.module';
+import * as dotenv from 'dotenv';
+import configuration from './config/config';
+import { LoggerFactory } from './common/logger/logger-factory';
+import { DatabaseModule } from './database/database.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { CompaniesModule } from './companies/companies.module';
+import { EmployeesModule } from './employees/employees.module';
+import { NoveltiesModule } from './novelties/novelties.module';
+import { SocialSecurityModule } from './social-security/social-security.module';
+import { MovementModule } from './movement/movement.module';
+import { SharedModule } from './shared/shared.module';
+import { SharedConfigModule } from './shared-config/shared-config.module';
+import { ConceptsModule } from './concepts/concepts.module';
+import { PeriodModule } from './period/period.module';
+import { JobsModule } from './jobs/jobs.module';
+import { SnapshotModule } from './snapshot/snapshot.module';
+import { WebModule } from './web/web.module';
+import { WorkerModule } from './worker/worker.module';
 
 dotenv.config();
+
+type ProcessType = 'web' | 'worker';
+
+function getProcessType(): ProcessType {
+  const value = (process.env.PROCESS_TYPE ?? 'web') as ProcessType;
+  if (value !== 'web' && value !== 'worker') {
+    throw new Error(
+      `PROCESS_TYPE inválido: "${value}". Valores permitidos: "web" | "worker".`,
+    );
+  }
+  return value;
+}
+
+const processType = getProcessType();
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -44,46 +45,32 @@ dotenv.config();
       isGlobal: true,
       ignoreEnvFile: false,
     }),
-    ThrottlerModule.forRoot([
-      { name: 'short', ttl: 60000, limit: 10 },
-      { name: 'medium', ttl: 60000, limit: 100 },
-      { name: 'long', ttl: 3600000, limit: 1000 },
-    ]),
+    // Caché en memoria (mismo comportamiento que tenía payroll-worker antes
+    // de esta migración). Conectar Redis real queda como mejora futura.
+    CacheModule.register({ isGlobal: true }),
+    // NoveltiesModule (compartido) depende de EventEmitter2 - debe cargarse
+    // en ambos procesos, no solo en el web.
     EventEmitterModule.forRoot(),
+    WinstonModule.forRoot(
+      LoggerFactory(processType === 'worker' ? 'PayrollWorker' : 'PayrollAPI'),
+    ),
+    // Compartidos: los usan tanto el CRUD web (payroll/) como el motor de
+    // cálculo (payroll-processing/).
     DatabaseModule,
-    AuthModule,
-    UsersModule,
-    MailModule,
-    CompaniesModule,
-    PayrollModule,
-    AttendanceModule,
-    BenefitsModule,
-    ReportsModule,
-    ComplianceModule,
-    NotificationsModule,
-    IntegrationModule,
-    EmployeesModule,
-    SharedModule,
-    DeductionsModule,
-    BonusesModule,
-    CostCentersModule,
-    TimeTrackingModule,
-    BankingModule,
-    NoveltiesModule,
-    ConfigModule,
-    SocialSecurityModule,
-    WinstonModule.forRoot(LoggerFactory('PayrollAPI')),
-    MovementModule, // make it global
-    ExportsModule,
-    SharedConfigModule,
     MessagingModule,
+    CompaniesModule,
+    EmployeesModule,
+    NoveltiesModule,
+    SocialSecurityModule,
+    MovementModule, // make it global
+    SharedModule,
+    SharedConfigModule,
+    ConceptsModule,
+    PeriodModule,
+    JobsModule,
+    SnapshotModule,
+    // Exclusivo de cada proceso, según PROCESS_TYPE.
+    ...(processType === 'web' ? [WebModule] : [WorkerModule]),
   ],
-  controllers: [AppController],
-  providers: [
-    AppService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
-  exports: [],
 })
 export class AppModule {}

@@ -3,7 +3,7 @@ import { BaseDto } from '../../utils/dto/Base.dto';
 import { PaginationDto } from '../../utils/dto/Pagination.dto';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ResponseConceptDto } from './../../payroll/dto/concept.dto';
+import { ResponseConceptDto } from 'src/concepts/concept.dto';
 import { ResponseEmployeeDto } from 'src/employees/dtos/employee.dto';
 
 export class RecurrentPaymentDto extends BaseDto {

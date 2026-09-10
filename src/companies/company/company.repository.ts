@@ -22,4 +22,12 @@ export class CompanyRepository extends BaseRepository<
   ) {
     super(repo);
   }
+
+  async getActiveCompanies(): Promise<Company[]> {
+    return this.repo.find({ where: { isActive: true } });
+  }
+
+  async findOne(companyId: string): Promise<Company> {
+    return this.repo.findOne({ where: { isActive: true, id: companyId } });
+  }
 }

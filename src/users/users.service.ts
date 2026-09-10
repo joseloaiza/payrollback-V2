@@ -12,8 +12,8 @@ import { Company } from './../companies/entities/company.entity';
 import { CompanyPayment } from './../companies/entities/companyPayment.entity';
 import { CompanyPayroll } from './../companies/entities/companyPayroll.entity';
 import { UsersCompany } from './entities/usersCompany.entity';
-import { Concept } from './../payroll/entities/concept.entity';
-import { ConceptService } from './../payroll/concept/concept.service';
+import { Concept } from '../concepts/concept.entity';
+import { ConceptService } from '../concepts/concepts.service';
 import { Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 //import { QueryBuilder } from 'typeorm-query-builder-wrapper';
@@ -98,8 +98,10 @@ export class UsersService {
       return newUser;
     } catch (error) {
       await queryRunner.rollbackTransaction();
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new InternalServerErrorException(
-        'Failed to create user and related records.' + error.message,
+        'Failed to create user and related records.' + errorMessage,
       );
     } finally {
       await queryRunner.release();

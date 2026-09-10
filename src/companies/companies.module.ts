@@ -43,7 +43,13 @@ import { SubsidiaryRepository } from './subsidiary/subsidiary.repository';
     PositionRepository,
     SubsidiaryRepository,
   ],
-  exports: [CompanyRepository, CompanyPayrollRepository],
+  exports: [
+    CompanyRepository,
+    CompanyPayrollRepository,
+    CompanyService,
+    CompanyPaymentService,
+    CompanyPayrollService,
+  ],
   controllers: [
     CompanyController,
     CompanyPaymentController,

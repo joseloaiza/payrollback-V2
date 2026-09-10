@@ -22,4 +22,10 @@ export class RecurrentPaymentRepository extends BaseRepository<
   ) {
     super(repo);
   }
+
+  async findActiveRecurrents(employeeId: string): Promise<RecurrentPayment[]> {
+    return this.repo.find({
+      where: { employee_id: employeeId, isActive: true },
+    });
+  }
 }

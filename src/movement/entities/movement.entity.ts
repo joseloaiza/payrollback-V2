@@ -1,9 +1,9 @@
 import { AbstractEntity } from './../../database/abstract.entity';
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Employee } from 'src/employees/entities/employee.entity';
-import { Concept } from 'src/payroll/entities/concept.entity';
-import { Period } from 'src/payroll/entities/period.entity';
-import { Liquidation } from 'src/payroll/entities/liquidation.entity';
+import { Concept } from 'src/concepts/concept.entity';
+import { Period } from 'src/period/entities/period.entity';
+import { Liquidation } from 'src/liquidation/entities/liquidation.entity';
 
 @Entity('movement')
 export class Movement extends AbstractEntity {

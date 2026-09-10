@@ -2,15 +2,15 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { NoRecurrentNoveltyService } from './non-recurring/no-recurrent-novelty.service';
-import { ConceptService } from 'src/payroll/concept/concept.service';
-import { PeriodService } from 'src/payroll/period/period.service';
+import { ConceptService } from 'src/concepts/concepts.service';
+import { PeriodService } from 'src/period/period.service';
 import { EmployeeSalaryService } from 'src/employees/employee-salary/employee-salary.service';
 import { EmployeeService } from './../employees/employee/employee.service';
 import { NoRecurrentNovelyController } from './non-recurring/no-recurrent-novelty.controller';
-import { Concept } from 'src/payroll/entities/concept.entity';
-import { Period } from 'src/payroll/entities/period.entity';
+import { Concept } from 'src/concepts/concept.entity';
+import { Period } from 'src/period/entities/period.entity';
 import { Employee } from 'src/employees/entities/employee.entity';
-import { PeriodStatus } from 'src/payroll/entities/periodStatus.entity';
+import { PeriodStatus } from 'src/period/entities/periodStatus.entity';
 import { CompanyPayment } from 'src/companies/entities/companyPayment.entity';
 import { Movement } from 'src/movement/entities/movement.entity';
 import { RecurrentPayment } from 'src/novelties/entities/recurrent-payment.entity';
@@ -34,16 +34,17 @@ import { AbsenteeHistoryRepository } from './absenteeism/absentee-history.reposi
 import { AbsenteeTypeRepository } from './absentee-type/absentee-type.repository';
 import { DiagnosisRepository } from './diagnosis/diagnosis.repository';
 import { Novelties } from './entities/novelties.entity';
-import { ConceptRepository } from 'src/payroll/concept/concept.repository';
+import { ConceptRepository } from 'src/concepts/concept.repository';
 import { CompanyPaymentService } from 'src/companies/company-payment/companyPayment.service';
-import { PeriodRepository } from 'src/payroll/period/period.repository';
-import { PeriodStatusService } from 'src/payroll/period-status/period-status.service';
+import { PeriodRepository } from 'src/period/period.repository';
+import { PeriodStatusService } from 'src/period/period-status/period-status.service';
 import { CompanyPaymentRepository } from 'src/companies/company-payment/comanyPayment.respository';
-import { PeriodStatusRepository } from 'src/payroll/period-status/period-status.repository';
+import { PeriodStatusRepository } from 'src/period/period-status/period-status.repository';
 import { RecurrentPaymentController } from './recurrent-payment/recurrent-payment.controller';
 import { RecurrentPaymentService } from './recurrent-payment/recurrent-payment.service';
 import { RecurrentPaymentRepository } from './recurrent-payment/recurrent-payment.repository';
 import { SharedConfigModule } from 'src/shared-config/shared-config.module';
+import { CodesConfigModule } from 'src/config/codes-config.module';
 import { NoveltyCreatedListener } from 'src/payroll/listeners/novelty-created.listener';
 import { PayrollModule } from 'src/payroll/payroll.module';
 import { EmployeeFullView } from 'src/employees/entities/employee.view';
@@ -52,6 +53,7 @@ import { VacationCalculatorService } from './vacation-calculator/vacation-calcul
 import { VacationCalculatorRepository } from './vacation-calculator/vacation-calculator.repository';
 import { EmployeeWorking } from 'src/employees/entities/employee-working.entity';
 import { WorkingHour } from 'src/shared/entities/workin-hour.entity';
+import { EmployeeContract } from 'src/employees/entities/employee-contract.entity';
 
 @Module({
   imports: [
@@ -73,9 +75,11 @@ import { WorkingHour } from 'src/shared/entities/workin-hour.entity';
       AbsenteeType,
       EmployeeWorking,
       WorkingHour,
+      EmployeeContract,
     ]),
     SharedConfigModule,
     PayrollModule,
+    CodesConfigModule,
   ],
   providers: [
     DiagnosisService,
@@ -107,7 +111,12 @@ import { WorkingHour } from 'src/shared/entities/workin-hour.entity';
     VacationCalculatorService,
     VacationCalculatorRepository,
   ],
-  exports: [NoveltiesRepository, AbsenteeHistoryRepository],
+  exports: [
+    NoveltiesRepository,
+    AbsenteeHistoryRepository,
+    AbsenteeHistoryService,
+    RecurrentPaymentService,
+  ],
   controllers: [
     NoRecurrentNovelyController,
     DiagnosisController,

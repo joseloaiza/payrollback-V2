@@ -8,6 +8,7 @@ import {
 import { CompanyRepository } from './company.repository';
 import { PaginatedResult } from 'src/utils/interfaces/paginated-result.interface';
 import { plainToInstance } from 'class-transformer';
+import { Company } from '../entities/company.entity';
 
 @Injectable()
 export class CompanyService {
@@ -32,6 +33,10 @@ export class CompanyService {
     return plainToInstance(ResponseCompanyDto, entity);
   }
 
+  async findOne1(companyId: string): Promise<Company> {
+    return await this.repo.findOne(companyId);
+  }
+
   async create(dto: CreateCompanyDto): Promise<ResponseCompanyDto> {
     const movement = await this.repo.create(dto);
     return plainToInstance(ResponseCompanyDto, movement);
@@ -48,5 +53,9 @@ export class CompanyService {
       throw new NotFoundException('Company not found');
     }
     return 'Company delete successfully';
+  }
+
+  async findActiveCompanies(): Promise<Company[]> {
+    return await this.repo.getActiveCompanies();
   }
 }

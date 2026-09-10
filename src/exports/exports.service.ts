@@ -4,7 +4,7 @@ import { AppConstants } from 'src/app.constants';
 import { CompanyService } from 'src/companies/company/company.service';
 import { format } from 'date-fns';
 import { CompanyPaymentService } from 'src/companies/company-payment/companyPayment.service';
-import { PayrollService } from '../payroll/payroll/payroll.service';
+import { PayrollService } from '../payroll/payroll.service';
 import { EmployeePaymentService } from 'src/employees/employee-payment/employee-payment.service';
 import { BankService } from 'src/shared/bank/bank.service';
 import { AccountTypeService } from 'src/shared/account-type/account-type.service';

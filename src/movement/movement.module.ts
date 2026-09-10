@@ -9,5 +9,6 @@ import { MovementRepository } from './movement.repository';
   imports: [TypeOrmModule.forFeature([Movement])],
   providers: [MovementService, MovementRepository],
   controllers: [MovementController],
+  exports: [MovementService, MovementRepository],
 })
 export class MovementModule {}

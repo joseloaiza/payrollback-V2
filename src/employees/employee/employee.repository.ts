@@ -11,6 +11,7 @@ import { Employee } from '../entities/employee.entity';
 import { EmployeeSalary } from '../entities/employee-salary.entity';
 import { PaginatedResult } from 'src/utils/interfaces/paginated-result.interface';
 import { EmployeeFullView } from '../entities/employee.view';
+import { EmployeeContract } from '../entities/employee-contract.entity';
 
 @Injectable()
 export class EmployeeRepository extends BaseRepository<
@@ -24,6 +25,8 @@ export class EmployeeRepository extends BaseRepository<
     repo: Repository<Employee>,
     @InjectRepository(EmployeeFullView)
     private readonly repoview: Repository<EmployeeFullView>,
+    @InjectRepository(EmployeeContract)
+    private readonly contract_repo: Repository<EmployeeContract>,
   ) {
     super(repo);
   }
@@ -466,8 +469,15 @@ export class EmployeeRepository extends BaseRepository<
   }
 
   async getEmployee(employeeId: string): Promise<EmployeeFullView> {
-    return this.repoview.findOneBy({ employee_id: employeeId });
+    return this.repoview
+      .createQueryBuilder('employee')
+      .where('employee.employee_id = :employeeId', { employeeId })
+      .orderBy('employee.endSalaryDate', 'DESC')
+      .limit(1)
+      .getOne();
+    //return this.repoview.findOneBy({ employee_id: employeeId });
   }
+
   async getEmployeesCompany(company_id: string): Promise<EmployeeFullView[]> {
     const employees = await this.repoview.find({
       where: { company_id: company_id },
@@ -484,5 +494,38 @@ export class EmployeeRepository extends BaseRepository<
       .getMany();
 
     return result.map((e) => e.employee_id);
+  }
+
+  async getContractsEmployee(employeeId: string): Promise<EmployeeContract[]> {
+    const contracts = await this.contract_repo.find({
+      where: { employee_id: employeeId },
+    });
+
+    return contracts;
+  }
+
+  async findContractsInPeriod(
+    employeeId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<EmployeeContract[]> {
+    return this.contract_repo
+      .createQueryBuilder('c')
+      .where('c.employee_id = :employeeId', { employeeId })
+      .andWhere('c.initialContractDate <= :periodEnd', { periodEnd })
+      .andWhere(
+        '(c.endContractDate IS NULL OR c.endContractDate >= :periodStart)',
+        { periodStart },
+      )
+      .orderBy('c.initialContractDate', 'ASC')
+      .getMany();
+  }
+
+  async getInitialContract(employeeId: string): Promise<EmployeeContract> {
+    return this.contract_repo
+      .createQueryBuilder('c')
+      .where('c.employee_id = :employeeId', { employeeId })
+      .orderBy('c.initialContractDate', 'ASC')
+      .getOne();
   }
 }

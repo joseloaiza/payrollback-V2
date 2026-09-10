@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AbsenteeCreatedEvent } from '../../novelties/events/absentee-created.event';
-import { PayrollService } from './../payroll/payroll.service';
+import { PayrollService } from '../payroll.service';
 
 @Injectable()
 export class AbsenteeCreatedListener {

@@ -10,9 +10,9 @@ import {
 import { mapEmployeeToDto } from '../utils/transform';
 import { EmployeeRepository } from './employee.repository';
 
-import * as fs from 'fs';
 import { PaginatedResult } from 'src/utils/interfaces/paginated-result.interface';
 import { EmployeeFullView } from '../entities/employee.view';
+import { EmployeeContract } from '../entities/employee-contract.entity';
 //import * as XLSX from 'xlsx';
 //import * as fastCsv from 'fast-csv';
 
@@ -160,99 +160,29 @@ export class EmployeeService {
     const employeeIds = await this.repo.getEmployeeIdsByCompany(companyId);
     return employeeIds;
   }
-  // private async saveEmployees(
-  //   rows: any[],
-  //   company_id: string,
-  //   user_id: string,
-  // ) {
-  //   const employees: UploadEmployeeDto[] = rows.map((item) => ({
-  //     isActive: true,
-  //     identification: item[0],
-  //     firstName: item[1],
-  //     secondName: item[2] || '',
-  //     surname: item[3],
-  //     secondSurName: item[4] || '',
-  //     birthDate: item[5],
-  //     address: item[6],
-  //     phone: item[7],
-  //     cellPhone: item[8],
-  //     email: item[9],
-  //     company_id,
-  //     createUser: user_id,
-  //   }));
 
-  //   await this.repo.save(employees);
-  //   return {
-  //     message: 'Employees uploaded successfully',
-  //     count: employees.length,
-  //   };
-  // }
+  async getContractsEmployee(employeeId: string): Promise<EmployeeContract[]> {
+    const contracts = await this.repo.getContractsEmployee(employeeId);
 
-  private detectDelimiter(filePath: string): string {
-    const content = fs.readFileSync(filePath, 'utf8');
-    if (content.includes(',')) return ',';
-    if (content.includes(';')) return ';';
-    if (content.includes('\t')) return '\t';
-    if (content.includes('|')) return '|';
-    return ','; // Default
+    return contracts;
+  }
+
+  async getContractsInPeriod(
+    employeeId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<EmployeeContract[]> {
+    const contracts = await this.repo.findContractsInPeriod(
+      employeeId,
+      periodStart,
+      periodEnd,
+    );
+
+    return contracts;
+  }
+
+  async getInitialContract(employeeId: string): Promise<EmployeeContract> {
+    const contract = await this.repo.getInitialContract(employeeId);
+    return contract;
   }
 }
-
-// async processFile(
-//   filePath: string,
-//   fileType: string,
-//   company_id: string,
-//   user_id: string,
-// ): Promise<any> {
-//   if (
-//     fileType ===
-//     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-//   ) {
-//     return this.processExcel(filePath, company_id, user_id);
-//   } else if (['text/csv', 'text/plain'].includes(fileType)) {
-//     return this.processCSVorTXT(filePath, company_id, user_id);
-//   } else {
-//     throw new BadRequestException('Unsupported file format');
-//   }
-// }
-
-// private async processExcel(
-//   filePath: string,
-//   company_id: string,
-//   user_id: string,
-// ): Promise<any> {
-//   const workbook = XLSX.readFile(filePath);
-//   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-//   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-//   return this.saveEmployees(rows, company_id, user_id);
-// }
-
-// private async processCSVorTXT(
-//   filePath: string,
-//   company_id: string,
-//   user_id: string,
-// ): Promise<any> {
-//   return new Promise((resolve, reject) => {
-//     const employees: any[] = [];
-//     const stream = fs.createReadStream(filePath);
-//     const parser = fastCsv
-//       .parse({ headers: false, delimiter: this.detectDelimiter(filePath) })
-//       .on('error', (error) => reject(error))
-//       .on('data', (row) => employees.push(row))
-//       .on('end', async () => {
-//         try {
-//           const result = await this.saveEmployees(
-//             employees,
-//             company_id,
-//             user_id,
-//           );
-//           resolve(result);
-//         } catch (error) {
-//           reject(error);
-//         }
-//       });
-
-//     stream.pipe(parser);
-//   });
-// }

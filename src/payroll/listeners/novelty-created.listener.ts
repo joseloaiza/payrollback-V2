@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { PayrollService } from '../payroll/payroll.service';
+import { PayrollService } from '../payroll.service';
 import { NoveltyCreatedEvent } from 'src/novelties/events/novelty-created.event';
 
 @Injectable()
