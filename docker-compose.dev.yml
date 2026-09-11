@@ -55,15 +55,19 @@ services:
     container_name: payroll-worker
     image: payroll-worker
     build:
-      context: ./payroll-worker
+      context: .
+      dockerfile: Dockerfile
       args:
         - NODE_ENV=development
       # platforms:
       #   - linux/amd64
     env_file:
-      - ./payroll-worker/.env
+      - .env.development
+    environment:
+      - PROCESS_TYPE=worker
+      - PORT=3001
     volumes:
-      - ./payroll-worker:/app
+      - .:/app
       - /app/node_modules
     depends_on:
       - rabbitmq
@@ -78,15 +82,19 @@ services:
     container_name: payroll-api
     image: payroll-api
     build:
-      context: ./payrollback
+      context: .
+      dockerfile: Dockerfile
       args:
         - NODE_ENV=development
       # platforms:
       #   - linux/amd64
     env_file:
-      - ./payrollback/.env.development
+      - .env.development
+    environment:
+      - PROCESS_TYPE=web
+      - PORT=3000
     volumes:
-      - ./payrollback:/app
+      - .:/app
       - /app/node_modules
     depends_on:
       - rabbitmq

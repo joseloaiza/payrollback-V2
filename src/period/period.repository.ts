@@ -64,20 +64,22 @@ export class PeriodRepository extends BaseRepository<
     }
   }
   async getLastPeriod(year: number, periodNumber: number): Promise<Period> {
-    if (periodNumber == 1) {
+    const currentYear = Number(year);
+    const currentPeriodNum = Number(periodNumber);
+    if (currentPeriodNum == 1) {
       // Case 1: last period of previous year
 
       return await this.repo
         .createQueryBuilder('p')
-        .where('p.year = :prevYear', { prevYear: year - 1 })
+        .where('p.year = :prevYear', { prevYear: currentYear - 1 })
         .orderBy('p.number', 'DESC')
         .getOne();
     } else {
       // Case 2: previous period in the same year
       return await this.repo.findOne({
         where: {
-          year: year,
-          number: periodNumber - 1,
+          year: currentYear,
+          number: currentPeriodNum - 1,
         },
       });
     }

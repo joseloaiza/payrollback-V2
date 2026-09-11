@@ -7,7 +7,7 @@ import { differenceInDays, subYears } from 'date-fns';
 import { Movement } from 'src/movement/entities/movement.entity';
 import { PayrollContext } from 'src/interfaces/payroll.interfaces';
 import { AbsenteeHistoryRepository } from './../../novelties/absenteeism/absentee-history.repository';
-import { numberDays } from './../../utils/date-utilities';
+import { numberDays } from './../../utils/date_utilities';
 import { VacationCalculationData } from 'src/liquidation/interfaces/liquidation.interfaces';
 import { CONCEPT_IDS_VACATION } from './../../constants/constants';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';

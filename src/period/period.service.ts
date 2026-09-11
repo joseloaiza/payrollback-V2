@@ -121,7 +121,7 @@ export class PeriodService {
   ): Promise<ResponsePeriodDto> {
     const entity = await this.repo.getLastPeriod(year, periodNumber);
     if (!entity) {
-      throw new NotFoundException('Period not found');
+      throw new NotFoundException('Previous Period not found');
     }
     return plainToInstance(ResponsePeriodDto, entity);
   }

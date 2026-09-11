@@ -7,7 +7,7 @@ import { MovementService } from 'src/movement/movement.service';
 import { PayrollConstantsService } from './../../config/payroll-constants/payroll-constants.service';
 import { CONCEPT_IDS_BONUS_PAYMENT } from 'src/constants/constants';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
-import { differenceInDays360 } from 'src/utils/date-utilities';
+import { differenceInDays360 } from 'src/utils/date_utilities';
 import { BonusPaymentCalculationData } from 'src/liquidation/interfaces/liquidation.interfaces';
 
 @Injectable()

@@ -1,0 +1,117 @@
+name: Build & Deploy Multi-Environment
+
+on:
+  push:
+    branches: [staging, production]
+
+jobs:
+  # -------------------------------------------------------------
+  # JOB 1: Compilar e impulsar imágenes a Docker Hub
+  # -------------------------------------------------------------
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/vozbi-backend:${{ env.SHORT_SHA }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/vozbi-backend:${{ github.ref_name == 'main' && 'latest' || 'staging-latest' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/vozbi-frontend:${{ env.SHORT_SHA }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/vozbi-frontend:${{ github.ref_name == 'main' && 'latest' || 'staging-latest' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # -------------------------------------------------------------
+  # JOB 2: Despliegue en el servidor correspondiente
+  # -------------------------------------------------------------
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # Asigna dinámicamente el entorno 'production' o 'staging'
+    environment: ${{ github.ref_name }}
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          COMPOSE_FILE: ${{ github.ref_name == 'production' && 'docker-compose.prod.yml' || 'docker-compose.test.yml' }}
+          ENV_FILE: ${{ github.ref_name == 'production' && '.env.production' || '.env.staging' }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          # Pasamos las variables al contexto SSH remoto
+          envs: COMPOSE_FILE,ENV_FILE
+          script: |
+            set -e
+            cd /opt/vozbi
+
+            echo "🚀 Iniciando despliegue en entorno: $COMPOSE_FILE usando $ENV_FILE"
+
+            # Worker en su propio contenedor solo si WORKER_IN_PROCESS=false en
+            # el .env de este ambiente — si es true, backend lo corre en el
+            # mismo proceso (ver src/index.js) y no se incluye docker-compose.worker.yml.
+            # Cambiar esa única variable alcanza para prender/apagar el contenedor
+            # worker en el próximo deploy, sin tocar YAML a mano.
+            WORKER_IN_PROCESS=$(grep -E '^WORKER_IN_PROCESS' "$ENV_FILE" | tail -1 | cut -d= -f2 | tr -d ' "')
+            if [ "$WORKER_IN_PROCESS" = "true" ]; then
+              echo "→ WORKER_IN_PROCESS=true — worker corre dentro de backend, sin contenedor aparte"
+              COMPOSE_FILES="-f $COMPOSE_FILE"
+            else
+              echo "→ WORKER_IN_PROCESS=false — worker corre en su propio contenedor"
+              COMPOSE_FILES="-f $COMPOSE_FILE -f docker-compose.worker.yml"
+            fi
+
+            # 1. Pull de imágenes actualizadas
+            docker compose --env-file $ENV_FILE $COMPOSE_FILES pull
+
+            # 2. Revisión de migraciones pendientes
+            PENDING=$(docker compose --env-file $ENV_FILE $COMPOSE_FILES run --rm -T backend node scripts/run-migrations.js --check | tail -1)
+
+            if [ "$PENDING" -gt 0 ]; then
+              echo "→ $PENDING migración(es) pendiente(s) — backup + migración antes de desplegar"
+              mkdir -p backups
+              docker compose --env-file $ENV_FILE $COMPOSE_FILES exec -T postgres \
+                sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "backups/pre-deploy-$(date +%Y%m%d%H%M%S).sql.gz"
+              find backups -name '*.sql.gz' -mtime +7 -delete
+              docker compose --env-file $ENV_FILE $COMPOSE_FILES run --rm backend node scripts/run-migrations.js
+            else
+              echo "→ Sin migraciones pendientes — deploy de solo aplicación"
+            fi
+
+            mkdir -p uploads
+            sudo chown -R 1000:1000 uploads || chmod -R 777 uploads
+
+            # 3. Levantar servicios y limpiar imágenes en desuso
+            # --remove-orphans es lo que efectivamente apaga/quita el contenedor
+            # worker si WORKER_IN_PROCESS pasó de false a true desde el último deploy.
+            docker compose --env-file $ENV_FILE $COMPOSE_FILES up -d --remove-orphans
+            docker image prune -f

@@ -96,7 +96,7 @@ import { ContractClassification } from './entities/contractClassification.entity
     GenderRepository,
     IdetificationTypeRepository,
   ],
-  exports: [EmployeeService],
+  exports: [EmployeeService, EmployeeSalaryService, EmployeePaymentService],
   controllers: [
     EmployeeController,
     AreaController,

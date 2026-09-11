@@ -10,7 +10,7 @@ import { AbsenteeType } from './absentee-type.entity';
 import {
   dateTransformer,
   nullableDateTransformer,
-} from 'src/utils/date-utilities';
+} from 'src/utils/date_utilities';
 
 @Entity('absenteeHistory')
 export class AbsenteeHistory extends AbstractEntity {

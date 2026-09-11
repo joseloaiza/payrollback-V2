@@ -43,7 +43,8 @@ services:
     container_name: payroll-worker-test
     image: payroll-worker-test
     build:
-      context: ./payroll-worker
+      context: .
+      dockerfile: Dockerfile
       args:
         - NODE_ENV=test
       platforms:
@@ -51,18 +52,25 @@ services:
     ports:
       - 3001:3001
     env_file:
-      - ./payroll-worker/.env.test
+      - .env.test
+    environment:
+      - PROCESS_TYPE=worker
+      - PORT=3001
   payroll-api:
     container_name: payroll-api-test
     image: payroll-api-test
     build:
-      context: ./payrollback
+      context: .
+      dockerfile: Dockerfile
       args:
         - NODE_ENV=production
       platforms:
         - linux/amd64
     env_file:
-      - ./payrollback/.env.test
+      - .env.test
+    environment:
+      - PROCESS_TYPE=web
+      - PORT=3000
     depends_on:
       - rabbitmq
       - postgres

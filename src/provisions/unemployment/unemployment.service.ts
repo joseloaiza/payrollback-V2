@@ -5,7 +5,7 @@ import { PayrollConstantsService } from './../../config/payroll-constants/payrol
 import { getConceptCodes } from './../../utils/concepts.utils';
 import { Movement } from 'src/movement/entities/movement.entity';
 import { PayrollContext } from 'src/interfaces/payroll.interfaces';
-import { differenceInDays360 } from 'src/utils/date-utilities';
+import { differenceInDays360 } from 'src/utils/date_utilities';
 import {
   UnemploymentCalculationData,
   InterestUnemploymentCalculationData,

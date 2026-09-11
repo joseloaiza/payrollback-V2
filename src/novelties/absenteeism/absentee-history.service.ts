@@ -6,7 +6,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { isBefore } from 'date-fns';
 import { CalculationResult } from '../interfaces/result-desease-absentee';
-import { numberDays, isSameOrBefore } from './../../utils/date-utilities';
+import { numberDays, isSameOrBefore } from './../../utils/date_utilities';
 import {
   CodesConfigService,
   CodesConfigDto,

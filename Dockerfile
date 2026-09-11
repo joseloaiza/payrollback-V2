@@ -30,6 +30,7 @@ WORKDIR /app
 # Establecer variable de entorno para la ejecución
 ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
+ENV PROCESS_TYPE=web
 
 USER node
 

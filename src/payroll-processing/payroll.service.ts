@@ -15,7 +15,7 @@ import { PayrollCalculationContext } from './payroll-context';
 import { Concept } from 'src/concepts/concept.entity';
 import { getConceptCodes } from 'src/utils/concepts.utils';
 import { CONCEPT_IDS_REGIME } from './../constants/constants';
-import { convertDateToUTC } from 'src/utils/date-utilities';
+import { convertDateToUTC } from 'src/utils/date_utilities';
 
 import { PayrollContextBuilderService } from './payroll-context-builder.service';
 import { CorePayrollCalculatorService } from './core-payroll-calculator.service';

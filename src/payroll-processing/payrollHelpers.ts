@@ -1,4 +1,4 @@
-import { differenceInDays360 } from 'src/utils/date-utilities';
+import { differenceInDays360 } from 'src/utils/date_utilities';
 import { MappingConfig } from '../interfaces/payroll.interfaces';
 import { isBefore, isAfter } from 'date-fns';
 
