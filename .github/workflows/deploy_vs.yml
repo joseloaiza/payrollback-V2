@@ -111,6 +111,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate deploy secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          missing=""
+          [ -z "$SSH_HOST" ] && missing="$missing SSH_HOST"
+          [ -z "$SSH_USER" ] && missing="$missing SSH_USER"
+          [ -z "$SSH_KEY" ]  && missing="$missing SSH_KEY"
+          if [ -n "$missing" ]; then
+            echo "✖ Faltan secrets en el GitHub Environment '$ENVIRONMENT':$missing"
+            echo "  Revisa Settings → Environments → $ENVIRONMENT → Environment secrets (NO 'Environment variables')."
+            exit 1
+          fi
+
       - name: Ensure remote deploy directory exists
         uses: appleboy/ssh-action@v1
         with:
@@ -136,8 +152,9 @@ jobs:
             echo "✖ El secret ENV_FILE del environment '$ENVIRONMENT' está vacío"
             exit 1
           fi
-          umask 077
           printf '%s\n' "$ENV_CONTENT" > deploy.env
+          chmod 644 deploy.env   # appleboy/scp-action corre en un contenedor con otro usuario; necesita poder leerlo.
+                                  # El runner es una VM efímera de un solo uso; en el VPS vuelve a 600 de inmediato.
 
       - name: Upload compose file and env file
         uses: appleboy/scp-action@v0.1.7
