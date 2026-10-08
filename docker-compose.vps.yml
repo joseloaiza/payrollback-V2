@@ -1,0 +1,207 @@
+name: payroll
+
+# Compose de RUNTIME para VPS (staging y production usan ESTE mismo archivo).
+#
+# - La imagen de la app se construye en CI y se publica en Docker Hub; el
+#   servidor solo hace `pull` + `up`, nunca compila.
+# - Toda la infraestructura (postgres, redis, rabbitmq) vive aquí, igual que en
+#   docker-compose.dev.yml. Lo único que cambia entre entornos es el
+#   `.env.deploy` (secreto ENV_FILE del GitHub Environment) y, si el servidor
+#   es más grande, los límites de memoria (*_MEM_LIMIT, *_NODE_HEAP, PG_*).
+# - Los defaults de memoria están dimensionados para 1 GB de RAM + swap.
+# - El `.env.deploy` es la ÚNICA fuente de configuración: tiene las mismas
+#   claves que .env.development (POSTGRES_HOST=postgres, la URL apunta a
+#   `rabbitmq`, etc.; son los nombres de servicio de este compose). Aquí solo
+#   se fijan PROCESS_TYPE, PORT y NODE_OPTIONS por servicio.
+#
+# Variables requeridas en .env.deploy: IMAGE_NAME e IMAGE_TAG las exporta el
+# pipeline; POSTGRES_PASSWORD, RABBITMQ_DEFAULT_USER y RABBITMQ_DEFAULT_PASS
+# deben venir en el ENV_FILE. Ver .env.vps.example.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-app-depends-on: &app-depends-on
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  rabbitmq:
+    condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: payroll-postgres-${ENVIRONMENT:-prod}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD es requerido}
+      POSTGRES_DB: ${POSTGRES_DB:-dbPayroll}
+      TZ: ${TZ:-America/Bogota}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-32MB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-128MB}
+      - -c
+      - work_mem=${PG_WORK_MEM:-2MB}
+      - -c
+      - maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-16MB}
+      - -c
+      - max_connections=${PG_MAX_CONNECTIONS:-40}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: ${POSTGRES_MEM_LIMIT:-160m}
+    logging: *default-logging
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: payroll-redis-${ENVIRONMENT:-prod}
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-48mb}
+      - --maxmemory-policy
+      - allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEM_LIMIT:-64m}
+    logging: *default-logging
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: payroll-rabbitmq-${ENVIRONMENT:-prod}
+    hostname: rabbitmq-payroll
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?RABBITMQ_DEFAULT_USER es requerido}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS es requerido}
+      RABBITMQ_MEM_WATERMARK: ${RABBITMQ_MEM_WATERMARK:-150MiB}
+    # Sin esto, el watermark por defecto (40% de la RAM) frena a los publishers
+    # (alarma de memoria) mucho antes de que el contenedor llegue a su límite.
+    command:
+      - sh
+      - -c
+      - |
+        echo "vm_memory_high_watermark.absolute = $${RABBITMQ_MEM_WATERMARK}" > /etc/rabbitmq/conf.d/20-memory.conf
+        exec docker-entrypoint.sh rabbitmq-server
+    ports:
+      # UI de administración solo por loopback; acceder con túnel SSH:
+      #   ssh -L 15672:127.0.0.1:15672 deploy@<host>
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: ${RABBITMQ_MEM_LIMIT:-224m}
+    logging: *default-logging
+
+  api:
+    image: ${IMAGE_NAME}:${IMAGE_TAG}
+    container_name: payroll-api-${ENVIRONMENT:-prod}
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      PROCESS_TYPE: web
+      PORT: "3000"
+      NODE_OPTIONS: --max-old-space-size=${API_NODE_HEAP:-192}
+    depends_on: *app-depends-on
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/docs || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: ${API_MEM_LIMIT:-256m}
+    logging: *default-logging
+
+  worker:
+    image: ${IMAGE_NAME}:${IMAGE_TAG}
+    container_name: payroll-worker-${ENVIRONMENT:-prod}
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      PROCESS_TYPE: worker
+      PORT: "3001"
+      NODE_OPTIONS: --max-old-space-size=${WORKER_NODE_HEAP:-192}
+    depends_on: *app-depends-on
+    ports:
+      - "127.0.0.1:3001:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3001/health | grep -q '\"status\":\"ok\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: ${WORKER_MEM_LIMIT:-256m}
+    logging: *default-logging
+
+  # Migraciones de TypeORM sobre el build compilado (dist/). No arranca con
+  # `up`; el pipeline la invoca con: docker compose --profile tools run --rm -T migrate
+  # (el `--profile tools` es obligatorio: sin él, `run` descarta el env_file).
+  migrate:
+    image: ${IMAGE_NAME}:${IMAGE_TAG}
+    profiles: ["tools"]
+    restart: "no"
+    env_file:
+      - .env.deploy
+    command:
+      - node_modules/.bin/typeorm
+      - migration:run
+      - -d
+      - dist/database/data-source.js
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${MIGRATE_MEM_LIMIT:-256m}
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:

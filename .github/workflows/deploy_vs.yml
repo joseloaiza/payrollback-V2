@@ -1,0 +1,234 @@
+name: Build & Deploy (VPS) v2
+
+# Pipeline CI/CD para VPS Ubuntu (Oracle Cloud). Un mismo flujo para staging y
+# production; solo cambian los secrets del GitHub Environment (SSH_*, ENV_FILE).
+#
+#   1. build   -> construye UNA imagen y la publica en Docker Hub
+#   2. deploy  -> por SSH: pull, infra sana, backup de BD, migraciones,
+#                 reemplazo de api/worker, healthcheck y rollback automático
+#
+# ACTIVACIÓN AUTOMÁTICA: por ahora solo corre manualmente (workflow_dispatch)
+# para poder compararlo contra deploy.yml sin que ambos desplieguen a la vez.
+# Cuando elijas este pipeline: descomenta el bloque `push` de abajo y
+# deshabilita/borra deploy.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Entorno de destino'
+        type: choice
+        required: true
+        options:
+          - staging
+          - production
+  # push:
+  #   branches:
+  #     - develop   # -> staging
+  #     - main      # -> production
+
+permissions:
+  contents: read
+
+# Mismo grupo que deploy.yml: si corrieran los dos, se serializan.
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_REPO: payrollback-v2
+
+jobs:
+  setup:
+    name: Resolve target environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.resolve.outputs.environment }}
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+    steps:
+      - name: Resolve environment and image tag
+        id: resolve
+        env:
+          INPUT_ENV: ${{ github.event.inputs.environment }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ -n "$INPUT_ENV" ]; then
+            ENVIRONMENT="$INPUT_ENV"
+          elif [ "$REF_NAME" = "main" ]; then
+            ENVIRONMENT="production"
+          else
+            ENVIRONMENT="staging"
+          fi
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+          echo "image_tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "Entorno: $ENVIRONMENT | tag: sha-${GITHUB_SHA::7}"
+
+  build:
+    name: Build & push image
+    needs: setup
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          build-args: |
+            NODE_ENV=production
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPO }}:${{ needs.setup.outputs.image_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPO }}:${{ needs.setup.outputs.environment }}-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
+    env:
+      ENVIRONMENT: ${{ needs.setup.outputs.environment }}
+      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/payrollback-v2
+      IMAGE_TAG: ${{ needs.setup.outputs.image_tag }}
+      DEPLOY_PATH: /opt/payroll/${{ needs.setup.outputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Ensure remote deploy directory exists
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: DEPLOY_PATH
+          script: |
+            set -eu
+            if [ ! -d "$DEPLOY_PATH" ]; then
+              echo "✖ $DEPLOY_PATH no existe. Créalo una vez en el servidor (ver docs/VPS_DEPLOYMENT_GUIDE.md, sección 5)."
+              exit 1
+            fi
+
+      # El ENV_FILE se materializa en el runner y viaja por scp (no como variable
+      # por SSH) para no depender del escapado de saltos de línea/comillas.
+      - name: Prepare env file on runner
+        env:
+          ENV_CONTENT: ${{ secrets.ENV_FILE }}
+        run: |
+          if [ -z "$ENV_CONTENT" ]; then
+            echo "✖ El secret ENV_FILE del environment '$ENVIRONMENT' está vacío"
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$ENV_CONTENT" > deploy.env
+
+      - name: Upload compose file and env file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: 'docker-compose.vps.yml,deploy.env'
+          target: ${{ env.DEPLOY_PATH }}
+          overwrite: true
+
+      - name: Install env file on VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: DEPLOY_PATH
+          script: |
+            set -eu
+            cd "$DEPLOY_PATH"
+            chmod 600 deploy.env
+            mv -f deploy.env .env.deploy
+
+      - name: Pull, migrate, deploy, healthcheck, rollback
+        uses: appleboy/ssh-action@v1
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          command_timeout: 20m
+          envs: IMAGE_NAME,IMAGE_TAG,ENVIRONMENT,DEPLOY_PATH,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+            mkdir -p backups
+            export IMAGE_NAME IMAGE_TAG ENVIRONMENT
+
+            COMPOSE="docker compose -p payroll-$ENVIRONMENT --env-file .env.deploy -f docker-compose.vps.yml"
+            PREVIOUS_TAG="$(cat .last_good_tag 2>/dev/null || true)"
+            echo "→ Desplegando $IMAGE_NAME:$IMAGE_TAG en $ENVIRONMENT (anterior: ${PREVIOUS_TAG:-ninguno})"
+
+            echo "→ [1/6] Pull de la nueva imagen"
+            trap 'docker logout >/dev/null 2>&1 || true' EXIT
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin >/dev/null
+            $COMPOSE pull api worker
+
+            echo "→ [2/6] Infraestructura (postgres, redis, rabbitmq) sana"
+            $COMPOSE up -d --wait --wait-timeout 180 postgres redis rabbitmq
+
+            echo "→ [3/6] Backup de la BD antes de migrar"
+            BACKUP="backups/pre-$IMAGE_TAG-$(date +%Y%m%d-%H%M%S).sql.gz"
+            $COMPOSE exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > "$BACKUP.tmp"
+            mv "$BACKUP.tmp" "$BACKUP"
+            ls -1t backups/pre-*.sql.gz | tail -n +6 | xargs -r rm --
+            echo "  backup: $BACKUP ($(du -h "$BACKUP" | cut -f1))"
+
+            echo "→ [4/6] Migraciones (contenedor descartable — api/worker actuales siguen en pie)"
+            # --profile tools es obligatorio: sin él, `run` sobre un servicio con perfil descarta el env_file.
+            if ! $COMPOSE --profile tools run --rm -T migrate; then
+              echo "✖ La migración falló — deploy abortado, api/worker NO fueron tocados."
+              echo "  Si es el primer deploy, falta restaurar el dump base de la BD (guía, sección 9)."
+              exit 1
+            fi
+
+            echo "→ [5/6] Reemplazando api y worker (espera a que estén healthy)"
+            if ! $COMPOSE up -d --remove-orphans --wait --wait-timeout 240 api worker; then
+              echo "✖ api/worker no quedaron healthy"
+              $COMPOSE logs --tail=60 api worker || true
+              if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$IMAGE_TAG" ]; then
+                echo "→ Rollback automático a $PREVIOUS_TAG (la BD NO se revierte: las migraciones deben ser retrocompatibles)"
+                IMAGE_TAG="$PREVIOUS_TAG" $COMPOSE up -d --wait --wait-timeout 240 api worker \
+                  || echo "✖ El rollback tampoco quedó healthy — revisar el servidor manualmente"
+              else
+                echo "✖ No hay tag previo registrado — sin rollback automático"
+              fi
+              exit 1
+            fi
+
+            echo "$IMAGE_TAG" > .last_good_tag
+            echo "→ [6/6] OK — $IMAGE_TAG marcado como última versión buena"
+            $COMPOSE ps
+
+            # Conserva solo la imagen actual y la anterior (rollback); libera disco.
+            docker images "$IMAGE_NAME" --format '{{.Tag}}' \
+              | grep -vxF -e "$IMAGE_TAG" -e "${PREVIOUS_TAG:-__none__}" \
+              | xargs -r -I{} docker rmi "$IMAGE_NAME:{}" || true
+            docker image prune -f >/dev/null

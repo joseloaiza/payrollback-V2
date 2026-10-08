@@ -1,21 +1,77 @@
-name: Build & Deploy Multi-Environment
+name: Build & Deploy (VPS)
+
+# Pipeline multi-entorno para el monolito modular (PROCESS_TYPE=web|worker,
+# ver MIGRATION_CONTEXT.md). Reemplaza el destino Azure Container Apps por un
+# VPS Ubuntu de bajos recursos (2 vCPU / 1 GB RAM): se construye UNA imagen
+# en GitHub Actions, se publica en Docker Hub, y el servidor solo hace
+# `docker pull` + `docker compose up` — nunca compila nada localmente.
+#
+# Activación:
+#   - push a `develop`            -> entorno staging
+#   - push a `main`                -> entorno production
+#   - release publicado sobre main -> entorno production
+#   - workflow_dispatch manual     -> el usuario elige el entorno
 
 on:
   push:
-    branches: [staging, production]
+    branches:
+      - develop
+      - main
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Entorno de destino"
+        type: choice
+        required: true
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
+  cancel-in-progress: false
 
 jobs:
-  # -------------------------------------------------------------
-  # JOB 1: Compilar e impulsar imágenes a Docker Hub
-  # -------------------------------------------------------------
-  build:
+  # -------------------------------------------------------------------------
+  # Resuelve una sola vez el entorno destino y el tag de imagen, para no
+  # repetir el mismo condicional en cada job.
+  # -------------------------------------------------------------------------
+  setup:
+    name: Resolve target environment
     runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.resolve.outputs.environment }}
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+    steps:
+      - name: Resolve environment and image tag
+        id: resolve
+        run: |
+          if [ -n "${{ github.event.inputs.environment }}" ]; then
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            ENVIRONMENT="production"
+          else
+            ENVIRONMENT="staging"
+          fi
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+          echo "image_tag=sha-$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "Entorno resuelto: $ENVIRONMENT (tag: sha-$SHORT_SHA)"
+
+  # -------------------------------------------------------------------------
+  # Build + push a Docker Hub. Corre bajo el Environment de GitHub del
+  # entorno resuelto para heredar sus secrets/protecciones si se configuran.
+  # -------------------------------------------------------------------------
+  build:
+    name: Build & push image
+    needs: setup
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set short SHA
-        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -30,88 +86,141 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: true
+          build-args: |
+            NODE_ENV=production
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/vozbi-backend:${{ env.SHORT_SHA }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/vozbi-backend:${{ github.ref_name == 'main' && 'latest' || 'staging-latest' }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/payrollback-v2:${{ needs.setup.outputs.image_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/payrollback-v2:${{ needs.setup.outputs.environment }}-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/vozbi-frontend:${{ env.SHORT_SHA }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/vozbi-frontend:${{ github.ref_name == 'main' && 'latest' || 'staging-latest' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # -------------------------------------------------------------
-  # JOB 2: Despliegue en el servidor correspondiente
-  # -------------------------------------------------------------
+  # -------------------------------------------------------------------------
+  # Despliegue en el VPS: sube el compose + .env del entorno, corre
+  # migraciones en un contenedor descartable (si fallan, aborta sin tocar el
+  # servicio en pie), reemplaza los contenedores, healthchecks y rollback
+  # automático a la última imagen buena si el healthcheck no pasa.
+  # -------------------------------------------------------------------------
   deploy:
-    needs: build
+    name: Deploy to VPS
+    needs: [setup, build]
     runs-on: ubuntu-latest
-    # Asigna dinámicamente el entorno 'production' o 'staging'
-    environment: ${{ github.ref_name }}
-
+    environment: ${{ needs.setup.outputs.environment }}
+    env:
+      ENVIRONMENT: ${{ needs.setup.outputs.environment }}
+      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/payrollback-v2
+      IMAGE_TAG: ${{ needs.setup.outputs.image_tag }}
+      DEPLOY_PATH: /opt/payroll/${{ needs.setup.outputs.environment }}
     steps:
-      - name: Deploy via SSH
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Ensure remote deploy directory exists
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          shell: bash
+          envs: DEPLOY_PATH
+          script: mkdir -p "$DEPLOY_PATH"
+
+      - name: Upload runtime compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: "docker-compose.vps.yml"
+          target: ${{ env.DEPLOY_PATH }}
+          strip_components: 0
+          overwrite: true
+
+      - name: Write environment file on VPS
         uses: appleboy/ssh-action@v1
         env:
-          COMPOSE_FILE: ${{ github.ref_name == 'production' && 'docker-compose.prod.yml' || 'docker-compose.test.yml' }}
-          ENV_FILE: ${{ github.ref_name == 'production' && '.env.production' || '.env.staging' }}
+          ENV_CONTENT: ${{ secrets.ENV_FILE }}
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          # Pasamos las variables al contexto SSH remoto
-          envs: COMPOSE_FILE,ENV_FILE
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          shell: bash
+          envs: DEPLOY_PATH,ENV_CONTENT
           script: |
-            set -e
-            cd /opt/vozbi
+            set -euo pipefail
+            umask 077
+            printf '%s\n' "$ENV_CONTENT" > "$DEPLOY_PATH/.env.deploy"
 
-            echo "🚀 Iniciando despliegue en entorno: $COMPOSE_FILE usando $ENV_FILE"
+      - name: Pull, migrate, deploy, healthcheck, rollback
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          ENVIRONMENT: ${{ env.ENVIRONMENT }}
+          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          shell: bash
+          envs: IMAGE_NAME,IMAGE_TAG,ENVIRONMENT,DEPLOY_PATH
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
 
-            # Worker en su propio contenedor solo si WORKER_IN_PROCESS=false en
-            # el .env de este ambiente — si es true, backend lo corre en el
-            # mismo proceso (ver src/index.js) y no se incluye docker-compose.worker.yml.
-            # Cambiar esa única variable alcanza para prender/apagar el contenedor
-            # worker en el próximo deploy, sin tocar YAML a mano.
-            WORKER_IN_PROCESS=$(grep -E '^WORKER_IN_PROCESS' "$ENV_FILE" | tail -1 | cut -d= -f2 | tr -d ' "')
-            if [ "$WORKER_IN_PROCESS" = "true" ]; then
-              echo "→ WORKER_IN_PROCESS=true — worker corre dentro de backend, sin contenedor aparte"
-              COMPOSE_FILES="-f $COMPOSE_FILE"
-            else
-              echo "→ WORKER_IN_PROCESS=false — worker corre en su propio contenedor"
-              COMPOSE_FILES="-f $COMPOSE_FILE -f docker-compose.worker.yml"
+            export IMAGE_NAME IMAGE_TAG ENVIRONMENT
+
+            # ¿Este entorno usa RabbitMQ propio o mensajería externa (Azure Service Bus)?
+            PROFILE_ARGS=""
+            if grep -qE '^MESSAGING_PROVIDER=rabbitmq' .env.deploy; then
+              PROFILE_ARGS="--profile rabbitmq"
             fi
 
-            # 1. Pull de imágenes actualizadas
-            docker compose --env-file $ENV_FILE $COMPOSE_FILES pull
+            COMPOSE="docker compose -p payroll-$ENVIRONMENT $PROFILE_ARGS --env-file .env.deploy -f docker-compose.vps.yml"
 
-            # 2. Revisión de migraciones pendientes
-            PENDING=$(docker compose --env-file $ENV_FILE $COMPOSE_FILES run --rm -T backend node scripts/run-migrations.js --check | tail -1)
+            PREVIOUS_TAG="$(cat .last_good_tag 2>/dev/null || true)"
+            echo "→ Desplegando $IMAGE_NAME:$IMAGE_TAG en $ENVIRONMENT (anterior: ${PREVIOUS_TAG:-ninguno})"
 
-            if [ "$PENDING" -gt 0 ]; then
-              echo "→ $PENDING migración(es) pendiente(s) — backup + migración antes de desplegar"
-              mkdir -p backups
-              docker compose --env-file $ENV_FILE $COMPOSE_FILES exec -T postgres \
-                sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "backups/pre-deploy-$(date +%Y%m%d%H%M%S).sql.gz"
-              find backups -name '*.sql.gz' -mtime +7 -delete
-              docker compose --env-file $ENV_FILE $COMPOSE_FILES run --rm backend node scripts/run-migrations.js
-            else
-              echo "→ Sin migraciones pendientes — deploy de solo aplicación"
+            echo "→ [1/5] Pull de la nueva imagen"
+            $COMPOSE pull
+
+            echo "→ [2/5] Migraciones (contenedor descartable — el servicio actual sigue en pie)"
+            if ! $COMPOSE run --rm -T --no-deps api npx typeorm migration:run -d dist/database/data-source.js; then
+              echo "✖ La migración falló — deploy abortado, el servicio actual NO fue tocado"
+              exit 1
             fi
 
-            mkdir -p uploads
-            sudo chown -R 1000:1000 uploads || chmod -R 777 uploads
+            echo "→ [3/5] Reemplazando contenedores"
+            $COMPOSE up -d --remove-orphans
 
-            # 3. Levantar servicios y limpiar imágenes en desuso
-            # --remove-orphans es lo que efectivamente apaga/quita el contenedor
-            # worker si WORKER_IN_PROCESS pasó de false a true desde el último deploy.
-            docker compose --env-file $ENV_FILE $COMPOSE_FILES up -d --remove-orphans
+            echo "→ [4/5] Healthcheck (hasta 60s)"
+            HEALTHY=false
+            for i in $(seq 1 20); do
+              if curl -fsS "http://localhost:3000/api/docs" > /dev/null 2>&1 \
+                 && curl -fsS "http://localhost:3001/health" 2>/dev/null | grep -q '"status":"ok"'; then
+                HEALTHY=true
+                break
+              fi
+              sleep 3
+            done
+
+            if [ "$HEALTHY" != "true" ]; then
+              echo "✖ Healthcheck falló tras el despliegue"
+              if [ -n "$PREVIOUS_TAG" ]; then
+                echo "→ [5/5] Rollback automático a $PREVIOUS_TAG"
+                IMAGE_TAG="$PREVIOUS_TAG" $COMPOSE up -d --remove-orphans
+              else
+                echo "✖ No hay tag previo registrado — no es posible hacer rollback automático"
+              fi
+              docker image prune -f
+              exit 1
+            fi
+
+            echo "$IMAGE_TAG" > .last_good_tag
+            echo "→ [5/5] Deploy exitoso — $IMAGE_TAG marcado como última versión buena"
             docker image prune -f
