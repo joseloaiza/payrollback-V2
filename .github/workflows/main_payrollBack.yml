@@ -1,12 +1,14 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
+#
+# DESHABILITADO (trigger automático removido): el destino de despliegue de
+# production pasó de Azure Container Apps a un VPS Ubuntu — ver deploy.yml.
+# Se deja solo con workflow_dispatch por si se necesita volver a usar Azure
+# manualmente; no se dispara solo en push a main.
 
 name: Build and deploy container app to Azure Web App - payrollBack
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 env:
   AZURE_CONTAINER_REGISTRY: animorhpayrolldev.azurecr.io

@@ -120,7 +120,9 @@ async function bootstrapWorker() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  console.info('✅ Payroll Worker (PROCESS_TYPE=worker) iniciado correctamente');
+  console.info(
+    '✅ Payroll Worker (PROCESS_TYPE=worker) iniciado correctamente',
+  );
   console.info(`🩺 Health-check disponible en :${port}/health`);
   console.log(process.env.NODE_ENV);
 }
