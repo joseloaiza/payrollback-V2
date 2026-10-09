@@ -32,6 +32,11 @@ ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
 ENV PROCESS_TYPE=web
 
+# Logs: el logger (src/common/logger/logger-factory.ts) escribe en /app/logs si
+# NODE_ENV != production, o en /tmp/logs si sí — se crean ambos con dueño `node`
+# para que el mkdirSync en runtime nunca falle por permisos, sin importar cuál rama tome.
+RUN mkdir -p /app/logs /tmp/logs && chown -R node:node /app/logs /tmp/logs
+
 USER node
 
 # Copiar solo el código compilado y las dependencias resultantes

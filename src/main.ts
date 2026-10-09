@@ -24,6 +24,15 @@ async function bootstrap() {
 
 async function bootstrapWeb() {
   const app = await NestFactory.create(AppModule);
+
+  // Responde algo útil en la raíz (en vez del 404 "Cannot GET /" de Express) para
+  // quien abra la URL del dominio directo en el navegador o un health-check externo
+  // que pegue a "/" en vez de "/api/v1/...". No pasa por setGlobalPrefix/versioning
+  // ni por los guards globales — es un endpoint trivial, sin lógica de negocio.
+  app.getHttpAdapter().get('/', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'payroll-api' });
+  });
+
   // Obtener el dominio del frontend desde las variables de entorno o lista de permitidos
   const frontendUrl =
     process.env.FRONTEND_URL || 'https://tu-nombre-de-swa.azurestaticapps.net';
