@@ -32,7 +32,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : String(exception);
 
-    this.logger.error(
+    const level = status >= 500 ? 'error' : 'warn';
+    this.logger[level](
       `[${request.method}] ${request.url} | Status: ${status} | Message: ${JSON.stringify(message)}`,
     );
 
