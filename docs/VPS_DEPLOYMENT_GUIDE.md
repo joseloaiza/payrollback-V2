@@ -222,10 +222,10 @@ certificado que instalar aquí — Cloudflare termina TLS en su borde.
 ```bash
 sudo rm -f /etc/nginx/sites-enabled/default
 
-sudo tee /etc/nginx/sites-available/payroll-stagin > /dev/null <<'NGINX_EOF'
+sudo tee /etc/nginx/sites-available/payroll-staging > /dev/null <<'NGINX_EOF'
 server {
-    listen 127.0.0.1:80 default_server;
-    server_name api.animorh.com;
+    listen 80;
+    server_name api-stg.animorh.com;
 
     server_tokens off;
     client_max_body_size 20m;                 # cargas de archivos / importaciones
@@ -246,7 +246,7 @@ server {
 }
 NGINX_EOF
 
-sudo ln -sf /etc/nginx/sites-available/payroll-<entorno> /etc/nginx/sites-enabled/payroll-<entorno>
+sudo ln -sf /etc/nginx/sites-available/payroll-staging /etc/nginx/sites-enabled/payroll-staging
 
 sudo nginx -t                            # revisa la salida COMPLETA antes de seguir, no la des por buena
 sudo systemctl restart nginx             # restart (no reload) en esta activación inicial: fuerza a releer todo desde cero
@@ -298,8 +298,13 @@ Un túnel por entorno (`payroll-staging`, `payroll-production`), cada uno en su 
    configuración vive en el dashboard).
 3. En la misma pantalla del túnel, pestaña **Public Hostname** → _Add a public hostname_:
    - Domain: `<dominio>`
-   - Type: `HTTP`
-   - URL: `localhost:80` (Nginx)
+   - Path: **vacío** (sin filtro) — si pones algo aquí (p. ej. `/api/v1`), **solo** esa ruta exacta se reenvía a
+     Nginx y todo lo demás cae en un `404` que genera el propio `cloudflared`, sin llegar siquiera a tocar el
+     servidor. Es Nginx quien debe decidir qué rutas existen, no el túnel.
+   - Service → Type: `HTTP` (⚠ no `HTTPS` — Nginx en esta guía solo habla HTTP plano en `127.0.0.1:80`; si el
+     Type queda en `HTTPS`, `cloudflared` intenta un saludo TLS contra Nginx y falla con
+     `tls: first record does not look like a TLS handshake`)
+   - Service → URL: `localhost:80` (Nginx)
 
    Solo se crea **un** Public Hostname, apuntando a Nginx — no al contenedor de la API (`127.0.0.1:3000`) ni al
    worker. Nginx es quien decide a qué contenedor reenviar (hoy, solo `api`); el worker (`127.0.0.1:3001`) nunca se
@@ -316,6 +321,19 @@ Un túnel por entorno (`payroll-staging`, `payroll-production`), cada uno en su 
    petición pasó por Cloudflare (con TLS terminado ahí, sin certificado propio en el servidor) y no por un acceso
    directo a la IP sin túnel. El `200` real llega en la sección 9 (primer deploy), cuando `api`/`worker` ya estén
    arriba.
+
+**Si en vez de 502 obtienes un error de Cloudflare ("Bad Gateway", pantalla de error de Cloudflare, no el JSON de
+Nginx) pese a que todo en el VPS está sano** (`docker ps` con los contenedores `healthy`, y
+`curl http://127.0.0.1:80/...` responde bien desde el propio servidor): el problema está en la configuración del
+Public Hostname, no en el servidor. Revisa el log de `cloudflared` en busca de la URL real que está intentando
+contactar:
+```bash
+sudo journalctl -u cloudflared -n 50 --no-pager -o cat | tail -40
+```
+Busca `originService=` en el error — debe decir `http://localhost:80`. Si dice `https://localhost:80`, el Service
+Type del Public Hostname quedó en `HTTPS` en vez de `HTTP` (corrígelo en el dashboard). La misma línea
+`"Updated to new configuration"` que aparece cada vez que guardas cambios en el dashboard también imprime el
+`ingress` completo — confirma ahí que `path` esté vacío y `service` empiece con `http://`.
 
 Operación:
 
